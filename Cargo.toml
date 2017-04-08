@@ -1,0 +1,7 @@
+[package]
+name = "signin"
+version = "0.1.0"
+authors = ["Boris Faure <boris@fau.re>"]
+
+[dependencies]
+debug_macros = "*"
