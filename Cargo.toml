@@ -5,3 +5,7 @@ authors = ["Boris Faure <boris@fau.re>"]
 
 [dependencies]
 debug_macros = "*"
+serde = "0.9.*"
+serde_json = "0.9.*"
+serde_derive = "0.9.*"
+base64 = "~0.4.0"
