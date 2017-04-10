@@ -5,10 +5,10 @@ authors = ["Boris Faure <boris@fau.re>"]
 license = "BSD-2-Clause"
 
 [dependencies]
-debug_macros = "*"
-serde = "0.9.*"
-serde_json = "0.9.*"
-serde_derive = "0.9.*"
-base64 = "~0.4.0"
-time = "*"
-openssl = "*"
+debug_macros = "0.0.1"
+serde = "0.9"
+serde_json = "0.9"
+serde_derive = "0.9"
+base64 = "0.4"
+time = "0.1"
+openssl = "0.9"
