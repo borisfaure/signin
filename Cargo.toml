@@ -2,6 +2,7 @@
 name = "signin"
 version = "0.1.0"
 authors = ["Boris Faure <boris@fau.re>"]
+license = "BSD-2-Clause"
 
 [dependencies]
 debug_macros = "*"
