@@ -87,9 +87,10 @@ impl Ctx {
     /// Expected format is JWK and an be found at
     /// https://www.googleapis.com/oauth2/v3/certs
     pub fn set_keys_from_reader<R>(&mut self, reader: R) -> Result<(), Error>
-        where R: Read {
-        let jsonkeys : JsonKeys = serde_json::from_reader(reader)?;
-        let mut map : KeysMap = HashMap::new();
+        where R: Read
+    {
+        let jsonkeys: JsonKeys = serde_json::from_reader(reader)?;
+        let mut map: KeysMap = HashMap::new();
 
         for key in jsonkeys.keys {
             if key.use_ != "sig" {
@@ -113,16 +114,13 @@ impl Ctx {
                         digest: digest,
                     };
                     map.insert(key.kid, k);
-                },
-                _ => {
-                    return Err(Error::UnsupportedAlgorithm)
                 }
+                _ => return Err(Error::UnsupportedAlgorithm),
             }
         }
         self.keys = map;
         Ok(())
     }
-
 }
 
 fn base64_decode_url(msg: &str) -> Result<Vec<u8>, base64::Base64Error> {
@@ -131,12 +129,12 @@ fn base64_decode_url(msg: &str) -> Result<Vec<u8>, base64::Base64Error> {
 
 fn decode_header(base64_hdr: &str) -> Result<Header, Error> {
     let hdr = base64_decode_url(base64_hdr)?;
-    let hdr : Header = serde_json::from_slice(&hdr)?;
+    let hdr: Header = serde_json::from_slice(&hdr)?;
     Ok(hdr)
 }
 
 fn json_get_str<'a>(obj: &'a JsonObject, name: &'static str) -> Result<&'a str, Error> {
-    let o : Option<&JsonValue> = obj.get(name);
+    let o: Option<&JsonValue> = obj.get(name);
     if let Some(v) = o {
         if !v.is_string() {
             return Err(Error::InvalidTypeField(name));
@@ -148,13 +146,13 @@ fn json_get_str<'a>(obj: &'a JsonObject, name: &'static str) -> Result<&'a str, 
 }
 
 fn json_get_numeric_date(obj: &JsonObject, name: &'static str) -> Result<Timespec, Error> {
-    let o : Option<&JsonValue> = obj.get(name);
+    let o: Option<&JsonValue> = obj.get(name);
     if let Some(v) = o {
         if !v.is_i64() {
             return Err(Error::InvalidTypeField(name));
         }
         let sec = v.as_i64().unwrap();
-        return Ok(Timespec{sec: sec, nsec: 0});
+        return Ok(Timespec { sec: sec, nsec: 0 });
     } else {
         return Err(Error::MissingField(name));
     }
@@ -162,7 +160,7 @@ fn json_get_numeric_date(obj: &JsonObject, name: &'static str) -> Result<Timespe
 
 fn decode_payload(base64_payload: &str) -> Result<Payload, Error> {
     let payload_json = base64_decode_url(base64_payload)?;
-    let obj : JsonValue = serde_json::from_slice(&payload_json)?;
+    let obj: JsonValue = serde_json::from_slice(&payload_json)?;
     if !obj.is_object() {
         return Err(Error::InvalidTypeField(""));
     }
@@ -173,12 +171,12 @@ fn decode_payload(base64_payload: &str) -> Result<Payload, Error> {
     let aud = json_get_str(obj, "aud")?;
     let exp = json_get_numeric_date(obj, "exp")?;
 
-    Ok(Payload{
-        sub: sub.to_string(),
-        iss: iss.to_string(),
-        aud: aud.to_string(),
-        exp: exp,
-    })
+    Ok(Payload {
+           sub: sub.to_string(),
+           iss: iss.to_string(),
+           aud: aud.to_string(),
+           exp: exp,
+       })
 }
 
 fn verify_payload(ctx: &Ctx, payload: &Payload) -> Result<(), Error> {
@@ -207,8 +205,12 @@ fn verify_rs256(txt: &str, key: &Key, sig: &[u8]) -> Result<(), Error> {
     }
 }
 
-fn verify_signature(ctx: &Ctx, hdr: &Header, hdr_base64: &str,
-                    payload_base64: &str, sig: &[u8]) -> Result<(), Error> {
+fn verify_signature(ctx: &Ctx,
+                    hdr: &Header,
+                    hdr_base64: &str,
+                    payload_base64: &str,
+                    sig: &[u8])
+                    -> Result<(), Error> {
     let txt = format!("{}.{}", hdr_base64, payload_base64);
 
     let key = ctx.keys.get(&hdr.kid);
@@ -221,12 +223,8 @@ fn verify_signature(ctx: &Ctx, hdr: &Header, hdr_base64: &str,
     }
 
     match key.alg.as_ref() {
-        "RS256" => {
-            verify_rs256(&txt, key, sig)
-        },
-        _ => {
-            Err(Error::UnsupportedAlgorithm)
-        }
+        "RS256" => verify_rs256(&txt, key, sig),
+        _ => Err(Error::UnsupportedAlgorithm),
     }
 }
 
@@ -255,7 +253,7 @@ pub fn google_signin_from_str(ctx: &Ctx, token: &str) -> Result<String, Error> {
     let hdr = decode_header(hdr_base64)?;
     let payload = decode_payload(payload_base64)?;
     let sig = base64_decode_url(sig_base64)?;
-    let sig_slice : &[u8] = &sig;
+    let sig_slice: &[u8] = &sig;
 
     verify_payload(&ctx, &payload)?;
     verify_signature(&ctx, &hdr, &hdr_base64, &payload_base64, sig_slice)?;

@@ -47,11 +47,11 @@ impl error::Error for Error {
     }
     fn cause(&self) -> Option<&error::Error> {
         Some(match *self {
-            Error::DecodeBase64(ref err) => err as &error::Error,
-            Error::DecodeJson(ref err) => err as &error::Error,
-            Error::OpensslError(ref err) => err as &error::Error,
-            ref e => e as &error::Error,
-        })
+                 Error::DecodeBase64(ref err) => err as &error::Error,
+                 Error::DecodeJson(ref err) => err as &error::Error,
+                 Error::OpensslError(ref err) => err as &error::Error,
+                 ref e => e as &error::Error,
+             })
     }
 }
 impl fmt::Display for Error {
@@ -66,7 +66,7 @@ impl fmt::Display for Error {
             Error::InvalidSignature => write!(f, "{}", error::Error::description(self)),
             Error::Expired => write!(f, "{}", error::Error::description(self)),
             Error::UnsupportedAlgorithm => write!(f, "{}", error::Error::description(self)),
-            Error::NoMatchingSigningKey=> write!(f, "{}", error::Error::description(self)),
+            Error::NoMatchingSigningKey => write!(f, "{}", error::Error::description(self)),
             Error::MissingField(s) => write!(f, "Missing Field '{}'", s),
             Error::InvalidTypeField(s) => write!(f, "Invalid type on Field '{}'", s),
         }
