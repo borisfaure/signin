@@ -3,6 +3,10 @@ name = "signin"
 version = "0.1.0"
 authors = ["Boris Faure <boris@fau.re>"]
 license = "BSD-2-Clause"
+keywords = ["google", "sign-in", "jwt"]
+readme = "README.md"
+description = "Rust library to validate google-sign-in tokens"
+repository = "https://github.com/billiob/signin"
 
 [dependencies]
 serde = "0.9"
