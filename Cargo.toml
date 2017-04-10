@@ -7,6 +7,7 @@ keywords = ["google", "sign-in", "jwt"]
 readme = "README.md"
 description = "Rust library to validate google-sign-in tokens"
 repository = "https://github.com/billiob/signin"
+documentation = "https://docs.rs/signin/"
 
 [dependencies]
 serde = "0.9"
