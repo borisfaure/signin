@@ -5,7 +5,6 @@ authors = ["Boris Faure <boris@fau.re>"]
 license = "BSD-2-Clause"
 
 [dependencies]
-debug_macros = "0.0.1"
 serde = "0.9"
 serde_json = "0.9"
 serde_derive = "0.9"

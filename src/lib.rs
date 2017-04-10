@@ -1,5 +1,9 @@
-#[macro_use]
-extern crate debug_macros;
+//! Library to valide google-sign-in tokens
+//!
+//! See https://developers.google.com/identity/sign-in/web/backend-auth
+//!
+
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -8,6 +12,7 @@ extern crate base64;
 extern crate time;
 extern crate openssl;
 
+/// Error types and their utilities
 pub mod errors;
 
 use errors::Error;
@@ -22,22 +27,21 @@ use openssl::sign::Verifier;
 type JsonValue = serde_json::value::Value;
 type JsonObject = serde_json::map::Map<String, JsonValue>;
 
-#[derive(Deserialize, Debug)]
-pub struct Header {
+#[derive(Deserialize)]
+struct Header {
     pub alg: String,
     pub kid: String,
 }
 
-#[derive(Debug)]
-pub struct Payload {
+struct Payload {
     pub sub: String,
     pub iss: String,
     pub aud: String,
     pub exp: Timespec,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct Key {
+#[derive(Deserialize)]
+struct Key {
     pub kty: String,
     pub alg: String,
     #[serde(rename = "use")]
@@ -47,16 +51,16 @@ pub struct Key {
     pub e: String,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct Keys {
+#[derive(Deserialize)]
+struct Keys {
     pub keys: Vec<Key>,
 }
 
 
-#[derive(Debug)]
+/// Context used to store Client_id and google public keys
 pub struct Ctx {
-    pub client_id: String,
-    pub keys: Keys,
+    client_id: String,
+    keys: Keys,
 }
 
 impl Ctx {
@@ -120,12 +124,6 @@ fn decode_payload(base64_payload: &str) -> Result<Payload, Error> {
     let aud = json_get_str(obj, "aud")?;
     let exp = json_get_numeric_date(obj, "exp")?;
 
-
-    dbg!("obj:{:?}", obj);
-    dbg!("sub:{:?}", sub);
-    dbg!("iss:{:?}", iss);
-    dbg!("aud:{:?}", aud);
-
     Ok(Payload{
         sub: sub.to_string(),
         iss: iss.to_string(),
@@ -159,10 +157,8 @@ fn find_key<'a>(ctx: &'a Ctx, hdr: &Header) -> Result<&'a Key, Error> {
 
 fn verify_rs256(txt: &str, key: &Key, sig: &[u8]) -> Result<(), Error> {
 
-    dbg!("n='{:?}'", key.n);
     let n_decoded = base64_decode_url(&key.n)?;
     let n = BigNum::from_slice(&n_decoded).unwrap();
-    dbg!("e='{:?}'", key.e);
     let e_decoded = base64_decode_url(&key.e)?;
     let e = BigNum::from_slice(&e_decoded).unwrap();
 
@@ -184,11 +180,8 @@ fn verify_rs256(txt: &str, key: &Key, sig: &[u8]) -> Result<(), Error> {
 fn verify_signature(ctx: &Ctx, hdr: &Header, hdr_base64: &str,
                     payload_base64: &str, sig: &[u8]) -> Result<(), Error> {
     let txt = format!("{}.{}", hdr_base64, payload_base64);
-    dbg!("txt:{:?}", txt);
 
     let key = find_key(ctx, hdr)?;
-    dbg!("key:{:?}", key);
-    dbg!("sig:{:?}", sig);
 
     match key.alg.as_ref() {
         "RS256" => {
@@ -218,9 +211,6 @@ pub fn google_signin_from_str(ctx: &Ctx, token: &str) -> Result<String, Error> {
     verify_payload(&ctx, &payload)?;
     verify_signature(&ctx, &hdr, &hdr_base64, &payload_base64, sig_slice)?;
 
-    dbg!("hdr={:?}", hdr);
-    dbg!("payload={:?}", payload);
-
     Ok(payload.sub)
 }
 
@@ -247,7 +237,6 @@ mod tests {
         let ctx = Ctx::new("google_keys.json".to_owned(), client_id);
 
         let res = google_signin_from_str(&ctx, &token);
-        dbg!("res={:?}", res);
         assert!(res.is_ok());
     }
 }
