@@ -16,13 +16,14 @@ extern crate openssl;
 pub mod errors;
 
 use errors::Error;
-use std::fs::File;
+use std::io::Read;
 use time::Timespec;
 use openssl::bn::BigNum;
 use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::sign::Verifier;
+use std::collections::HashMap;
 
 type JsonValue = serde_json::value::Value;
 type JsonObject = serde_json::map::Map<String, JsonValue>;
@@ -41,7 +42,7 @@ struct Payload {
 }
 
 #[derive(Deserialize)]
-struct Key {
+struct JsonKey {
     pub kty: String,
     pub alg: String,
     #[serde(rename = "use")]
@@ -52,28 +53,69 @@ struct Key {
 }
 
 #[derive(Deserialize)]
-struct Keys {
-    pub keys: Vec<Key>,
+struct JsonKeys {
+    pub keys: Vec<JsonKey>,
 }
 
+struct Key {
+    alg: String,
+    pkey: PKey,
+    digest: MessageDigest,
+}
+
+type KeysMap = HashMap<String, Key>;
 
 /// Context used to store Client_id and google public keys
 pub struct Ctx {
     client_id: String,
-    keys: Keys,
+    keys: KeysMap,
 }
 
 impl Ctx {
-    pub fn new(keys_path: String, client_id: String) -> Ctx {
-        let file = File::open(keys_path).unwrap();
-        let keys : Result<Keys, serde_json::Error> = serde_json::from_reader(&file);
-        let keys = keys.unwrap();
-
+    pub fn new(client_id: String) -> Ctx {
         Ctx {
             client_id: client_id,
-            keys: keys,
+            keys: HashMap::new(),
         }
     }
+
+    pub fn set_keys_from_reader<R>(&mut self, reader: R) -> Result<(), Error>
+        where R: Read {
+        let jsonkeys : JsonKeys = serde_json::from_reader(reader)?;
+        let mut map : KeysMap = HashMap::new();
+
+        for key in jsonkeys.keys {
+            if key.use_ != "sig" {
+                continue;
+            }
+            match key.alg.as_ref() {
+                "RS256" => {
+                    let n_decoded = base64_decode_url(&key.n)?;
+                    let n = BigNum::from_slice(&n_decoded)?;
+                    let e_decoded = base64_decode_url(&key.e)?;
+                    let e = BigNum::from_slice(&e_decoded)?;
+
+                    let rsa = Rsa::from_public_components(n, e)?;
+                    let pkey = PKey::from_rsa(rsa)?;
+
+                    let digest = MessageDigest::sha256();
+
+                    let k = Key {
+                        alg: key.alg.clone(),
+                        pkey: pkey,
+                        digest: digest,
+                    };
+                    map.insert(key.kid, k);
+                },
+                _ => {
+                    return Err(Error::UnsupportedAlgorithm)
+                }
+            }
+        }
+        self.keys = map;
+        Ok(())
+    }
+
 }
 
 fn base64_decode_url(msg: &str) -> Result<Vec<u8>, base64::Base64Error> {
@@ -146,28 +188,9 @@ fn verify_payload(ctx: &Ctx, payload: &Payload) -> Result<(), Error> {
     Ok(())
 }
 
-fn find_key<'a>(ctx: &'a Ctx, hdr: &Header) -> Result<&'a Key, Error> {
-    for key in &ctx.keys.keys {
-        if key.kid == hdr.kid && key.alg == hdr.alg && key.use_ == "sig" {
-            return Ok(key);
-        }
-    }
-    Err(Error::NoMatchingSigningKey)
-}
-
 fn verify_rs256(txt: &str, key: &Key, sig: &[u8]) -> Result<(), Error> {
-
-    let n_decoded = base64_decode_url(&key.n)?;
-    let n = BigNum::from_slice(&n_decoded).unwrap();
-    let e_decoded = base64_decode_url(&key.e)?;
-    let e = BigNum::from_slice(&e_decoded).unwrap();
-
-    let rsa = Rsa::from_public_components(n, e).unwrap();
-    let key = PKey::from_rsa(rsa).unwrap();
-
-    let digest = MessageDigest::sha256();
-    let mut verifier = Verifier::new(digest, &key).unwrap();
-    verifier.update(txt.as_bytes()).unwrap();
+    let mut verifier = Verifier::new(key.digest, &key.pkey)?;
+    verifier.update(txt.as_bytes())?;
     let res = verifier.finish(sig);
 
     match res {
@@ -181,7 +204,14 @@ fn verify_signature(ctx: &Ctx, hdr: &Header, hdr_base64: &str,
                     payload_base64: &str, sig: &[u8]) -> Result<(), Error> {
     let txt = format!("{}.{}", hdr_base64, payload_base64);
 
-    let key = find_key(ctx, hdr)?;
+    let key = ctx.keys.get(&hdr.kid);
+    if key.is_none() {
+        return Err(Error::NoMatchingSigningKey);
+    }
+    let key = key.unwrap();
+    if key.alg != hdr.alg {
+        return Err(Error::NoMatchingSigningKey);
+    }
 
     match key.alg.as_ref() {
         "RS256" => {
@@ -219,13 +249,12 @@ pub fn google_signin_from_str(ctx: &Ctx, token: &str) -> Result<String, Error> {
 mod tests {
     use super::*;
 
-    use std::io;
-    use std::io::prelude::*;
+    use std::fs::File;
 
     fn content_from_file(filename: &str) -> String {
         let mut file = File::open(filename).unwrap();
         let mut buf = String::new();
-        file.read_to_string(&mut buf);
+        assert!(file.read_to_string(&mut buf).is_ok());
         buf.pop(); // remove trailing \n
         buf
     }
@@ -234,8 +263,10 @@ mod tests {
     fn from_token_file() {
         let token = content_from_file("token");
         let client_id = content_from_file("client_id");
-        let ctx = Ctx::new("google_keys.json".to_owned(), client_id);
+        let mut ctx = Ctx::new(client_id);
 
+        let keys = File::open("google_keys.json").unwrap();
+        assert!(ctx.set_keys_from_reader(keys).is_ok());
         let res = google_signin_from_str(&ctx, &token);
         assert!(res.is_ok());
     }
