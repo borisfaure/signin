@@ -72,6 +72,9 @@ pub struct Ctx {
 }
 
 impl Ctx {
+    /// Instantiate a new context
+    ///
+    /// Use `set_keys_from_reader` to set google public keys
     pub fn new(client_id: String) -> Ctx {
         Ctx {
             client_id: client_id,
@@ -79,6 +82,10 @@ impl Ctx {
         }
     }
 
+    /// Set google public keys used to verify tokens' signatures
+    ///
+    /// Expected format is JWK and an be found at
+    /// https://www.googleapis.com/oauth2/v3/certs
     pub fn set_keys_from_reader<R>(&mut self, reader: R) -> Result<(), Error>
         where R: Read {
         let jsonkeys : JsonKeys = serde_json::from_reader(reader)?;
@@ -223,6 +230,18 @@ fn verify_signature(ctx: &Ctx, hdr: &Header, hdr_base64: &str,
     }
 }
 
+/// Validate a google sign-in token
+///
+/// What is checked:
+///
+///  -  The ID token is properly signed by Google using Google's public keys
+///  -  The value of `aud` in the token is equal to the client ID.
+///  -  The value of `iss` in the token is equal to accounts.google.com or
+///     https://accounts.google.com.
+///  -  The expiry time (exp) of the token has not passed, with an hour delay
+///     to handle time skews
+///
+/// Returns the `sub` field as a `String` or an `Error`
 pub fn google_signin_from_str(ctx: &Ctx, token: &str) -> Result<String, Error> {
     let arr: Vec<&str> = token.split(".").collect();
     if arr.len() != 3 {
