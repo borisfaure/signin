@@ -186,10 +186,10 @@ fn verify_payload(ctx: &Ctx, payload: &Payload) -> Result<(), Error> {
     if payload.iss != "accounts.google.com" && payload.iss != "https://accounts.google.com" {
         return Err(Error::InvalidIssuer);
     }
-    //let now = time::now_utc().to_timespec();
-    //if payload.exp.sec + 3600 < now.sec {
-    //    return Err(Error::Expired);
-    //}
+    let now = time::now_utc().to_timespec();
+    if payload.exp.sec + 3600 < now.sec {
+        return Err(Error::Expired);
+    }
     Ok(())
 }
 
