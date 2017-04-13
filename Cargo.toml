@@ -1,6 +1,6 @@
 [package]
 name = "signin"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Boris Faure <boris@fau.re>"]
 license = "BSD-2-Clause"
 keywords = ["google", "sign-in", "jwt"]
@@ -11,7 +11,7 @@ documentation = "https://docs.rs/signin/"
 
 [dependencies]
 serde = "0.9"
-serde_json = "0.9"
+serde_json = "~0.9.8"
 serde_derive = "0.9"
 base64 = "0.4"
 time = "0.1"
