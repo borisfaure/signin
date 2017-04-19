@@ -60,7 +60,6 @@ struct JsonKeys {
 struct Key {
     alg: String,
     pkey: PKey,
-    digest: MessageDigest,
 }
 
 type KeysMap = HashMap<String, Key>;
@@ -106,12 +105,9 @@ impl Ctx {
                     let rsa = Rsa::from_public_components(n, e)?;
                     let pkey = PKey::from_rsa(rsa)?;
 
-                    let digest = MessageDigest::sha256();
-
                     let k = Key {
                         alg: key.alg.clone(),
                         pkey: pkey,
-                        digest: digest,
                     };
                     map.insert(key.kid, k);
                 }
@@ -194,7 +190,9 @@ fn verify_payload(ctx: &Ctx, payload: &Payload) -> Result<(), Error> {
 }
 
 fn verify_rs256(txt: &str, key: &Key, sig: &[u8]) -> Result<(), Error> {
-    let mut verifier = Verifier::new(key.digest, &key.pkey)?;
+    let digest = MessageDigest::sha256();
+
+    let mut verifier = Verifier::new(digest, &key.pkey)?;
     verifier.update(txt.as_bytes())?;
     let res = verifier.finish(sig);
 
