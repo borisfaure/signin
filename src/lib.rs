@@ -117,6 +117,40 @@ impl Ctx {
         self.keys = map;
         Ok(())
     }
+
+    /// Validate a google sign-in token
+    ///
+    /// What is checked:
+    ///
+    ///  -  The ID token is properly signed by Google using Google's public keys
+    ///  -  The value of `aud` in the token is equal to the client ID.
+    ///  -  The value of `iss` in the token is equal to accounts.google.com or
+    ///     https://accounts.google.com.
+    ///  -  The expiry time (exp) of the token has not passed, with an hour delay
+    ///     to handle time skews
+    ///
+    /// Returns the `sub` field as a `String` or an `Error`
+    pub fn google_signin_from_str(&self, token: &str) -> Result<String, Error> {
+        let arr: Vec<&str> = token.split(".").collect();
+        if arr.len() != 3 {
+            return Err(Error::InvalidToken);
+        }
+
+        let hdr_base64 = arr[0];
+        let payload_base64 = arr[1];
+        let sig_base64 = arr[2];
+
+        let hdr = decode_header(hdr_base64)?;
+        let payload = decode_payload(payload_base64)?;
+        let sig = base64_decode_url(sig_base64)?;
+        let sig_slice: &[u8] = &sig;
+
+        verify_payload(self, &payload)?;
+        verify_signature(self, &hdr, &hdr_base64, &payload_base64, sig_slice)?;
+
+        Ok(payload.sub)
+    }
+
 }
 
 fn base64_decode_url(msg: &str) -> Result<Vec<u8>, base64::Base64Error> {
@@ -224,39 +258,6 @@ fn verify_signature(ctx: &Ctx,
         "RS256" => verify_rs256(&txt, key, sig),
         _ => Err(Error::UnsupportedAlgorithm),
     }
-}
-
-/// Validate a google sign-in token
-///
-/// What is checked:
-///
-///  -  The ID token is properly signed by Google using Google's public keys
-///  -  The value of `aud` in the token is equal to the client ID.
-///  -  The value of `iss` in the token is equal to accounts.google.com or
-///     https://accounts.google.com.
-///  -  The expiry time (exp) of the token has not passed, with an hour delay
-///     to handle time skews
-///
-/// Returns the `sub` field as a `String` or an `Error`
-pub fn google_signin_from_str(ctx: &Ctx, token: &str) -> Result<String, Error> {
-    let arr: Vec<&str> = token.split(".").collect();
-    if arr.len() != 3 {
-        return Err(Error::InvalidToken);
-    }
-
-    let hdr_base64 = arr[0];
-    let payload_base64 = arr[1];
-    let sig_base64 = arr[2];
-
-    let hdr = decode_header(hdr_base64)?;
-    let payload = decode_payload(payload_base64)?;
-    let sig = base64_decode_url(sig_base64)?;
-    let sig_slice: &[u8] = &sig;
-
-    verify_payload(&ctx, &payload)?;
-    verify_signature(&ctx, &hdr, &hdr_base64, &payload_base64, sig_slice)?;
-
-    Ok(payload.sub)
 }
 
 
