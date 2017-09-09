@@ -301,7 +301,7 @@ mod tests {
 
         let keys = File::open("google_keys.json").unwrap();
         assert!(ctx.set_keys_from_reader(keys).is_ok());
-        let res = google_signin_from_str(&ctx, &token);
+        let res = ctx.google_signin_from_str(&token);
         assert!(res.is_ok());
     }
 }
