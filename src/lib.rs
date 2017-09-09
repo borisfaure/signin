@@ -81,14 +81,8 @@ impl Ctx {
         }
     }
 
-    /// Set google public keys used to verify tokens' signatures
-    ///
-    /// Expected format is JWK and an be found at
-    /// https://www.googleapis.com/oauth2/v3/certs
-    pub fn set_keys_from_reader<R>(&mut self, reader: R) -> Result<(), Error>
-        where R: Read
-    {
-        let jsonkeys: JsonKeys = serde_json::from_reader(reader)?;
+
+    fn set_keys_from_json_keys(&mut self, jsonkeys: JsonKeys) -> Result<(), Error> {
         let mut map: KeysMap = HashMap::new();
 
         for key in jsonkeys.keys {
@@ -116,6 +110,27 @@ impl Ctx {
         }
         self.keys = map;
         Ok(())
+    }
+
+    /// Set google public keys used to verify tokens' signatures
+    ///
+    /// Expected format is JWK and an be found at
+    /// https://www.googleapis.com/oauth2/v3/certs
+    pub fn set_keys_from_reader<R>(&mut self, reader: R) -> Result<(), Error>
+        where R: Read
+    {
+        let jsonkeys: JsonKeys = serde_json::from_reader(reader)?;
+        return self.set_keys_from_json_keys(jsonkeys);
+    }
+
+    /// Set google public keys used to verify tokens' signatures
+    ///
+    /// Expected format is JWK and an be found at
+    /// https://www.googleapis.com/oauth2/v3/certs
+    pub fn set_keys_from_str<'a>(&mut self, s: &'a str) -> Result<(), Error>
+    {
+        let jsonkeys: JsonKeys = serde_json::from_str(s)?;
+        return self.set_keys_from_json_keys(jsonkeys);
     }
 
     /// Validate a google sign-in token
