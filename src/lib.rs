@@ -108,6 +108,9 @@ impl Ctx {
                 _ => return Err(Error::UnsupportedAlgorithm),
             }
         }
+        if map.len() == 0 {
+                return Err(Error::NoKeys);
+        }
         self.keys = map;
         Ok(())
     }

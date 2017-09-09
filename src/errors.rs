@@ -17,6 +17,7 @@ pub enum Error {
     Expired,
     MissingField(&'static str),
     InvalidTypeField(&'static str),
+    NoKeys
 }
 macro_rules! impl_from_error {
     ($f: ty, $e: expr) => {
@@ -43,6 +44,7 @@ impl error::Error for Error {
             Error::NoMatchingSigningKey => "No Matching Signing Key",
             Error::MissingField(_) => "Missing Field",
             Error::InvalidTypeField(_) => "Invalid type on field",
+            Error::NoKeys => "No Keys found",
         }
     }
     fn cause(&self) -> Option<&error::Error> {
@@ -69,6 +71,7 @@ impl fmt::Display for Error {
             Error::NoMatchingSigningKey => write!(f, "{}", error::Error::description(self)),
             Error::MissingField(s) => write!(f, "Missing Field '{}'", s),
             Error::InvalidTypeField(s) => write!(f, "Invalid type on Field '{}'", s),
+            Error::NoKeys => write!(f, "{}", error::Error::description(self)),
         }
     }
 }
