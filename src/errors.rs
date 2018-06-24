@@ -5,7 +5,7 @@ use openssl;
 
 #[derive(Debug)]
 pub enum Error {
-    DecodeBase64(base64::Base64Error),
+    DecodeBase64(base64::DecodeError),
     DecodeJson(serde_json::Error),
     OpensslError(openssl::error::ErrorStack),
     InvalidToken,
@@ -26,7 +26,7 @@ macro_rules! impl_from_error {
         }
     }
 }
-impl_from_error!(base64::Base64Error, Error::DecodeBase64);
+impl_from_error!(base64::DecodeError, Error::DecodeBase64);
 impl_from_error!(serde_json::Error, Error::DecodeJson);
 impl_from_error!(openssl::error::ErrorStack, Error::OpensslError);
 impl error::Error for Error {

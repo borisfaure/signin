@@ -20,7 +20,7 @@ use std::io::Read;
 use time::Timespec;
 use openssl::bn::BigNum;
 use openssl::hash::MessageDigest;
-use openssl::pkey::PKey;
+use openssl::pkey::{Public, PKey};
 use openssl::rsa::Rsa;
 use openssl::sign::Verifier;
 use std::collections::HashMap;
@@ -28,7 +28,7 @@ use std::collections::HashMap;
 type JsonValue = serde_json::value::Value;
 type JsonObject = serde_json::map::Map<String, JsonValue>;
 
-#[derive(Deserialize)]
+#[derive(Deserialize,Debug)]
 struct Header {
     pub alg: String,
     pub kid: String,
@@ -59,7 +59,7 @@ struct JsonKeys {
 
 struct Key {
     alg: String,
-    pkey: PKey,
+    pkey: PKey<Public>,
 }
 
 type KeysMap = HashMap<String, Key>;
@@ -97,7 +97,7 @@ impl Ctx {
                     let e = BigNum::from_slice(&e_decoded)?;
 
                     let rsa = Rsa::from_public_components(n, e)?;
-                    let pkey = PKey::from_rsa(rsa)?;
+                    let pkey : PKey<Public> = PKey::from_rsa(rsa)?;
 
                     let k = Key {
                         alg: key.alg.clone(),
@@ -171,7 +171,7 @@ impl Ctx {
 
 }
 
-fn base64_decode_url(msg: &str) -> Result<Vec<u8>, base64::Base64Error> {
+fn base64_decode_url(msg: &str) -> Result<Vec<u8>, base64::DecodeError> {
     base64::decode_config(msg, base64::URL_SAFE)
 }
 
@@ -246,7 +246,7 @@ fn verify_rs256(txt: &str, key: &Key, sig: &[u8]) -> Result<(), Error> {
 
     let mut verifier = Verifier::new(digest, &key.pkey)?;
     verifier.update(txt.as_bytes())?;
-    let res = verifier.finish(sig);
+    let res = verifier.verify(sig);
 
     match res {
         Ok(true) => Ok(()),
