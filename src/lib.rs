@@ -3,32 +3,31 @@
 //! See https://developers.google.com/identity/sign-in/web/backend-auth
 //!
 
-
 #[macro_use]
 extern crate serde_derive;
+extern crate base64;
+extern crate openssl;
 extern crate serde;
 extern crate serde_json;
-extern crate base64;
 extern crate time;
-extern crate openssl;
 
 /// Error types and their utilities
 pub mod errors;
 
 use errors::Error;
-use std::io::Read;
-use time::Timespec;
 use openssl::bn::BigNum;
 use openssl::hash::MessageDigest;
-use openssl::pkey::{Public, PKey};
+use openssl::pkey::{PKey, Public};
 use openssl::rsa::Rsa;
 use openssl::sign::Verifier;
 use std::collections::HashMap;
+use std::io::Read;
+use time::Timespec;
 
 type JsonValue = serde_json::value::Value;
 type JsonObject = serde_json::map::Map<String, JsonValue>;
 
-#[derive(Deserialize,Debug)]
+#[derive(Deserialize, Debug)]
 struct Header {
     pub alg: String,
     pub kid: String,
@@ -81,7 +80,6 @@ impl Ctx {
         }
     }
 
-
     fn set_keys_from_json_keys(&mut self, jsonkeys: JsonKeys) -> Result<(), Error> {
         let mut map: KeysMap = HashMap::new();
 
@@ -97,7 +95,7 @@ impl Ctx {
                     let e = BigNum::from_slice(&e_decoded)?;
 
                     let rsa = Rsa::from_public_components(n, e)?;
-                    let pkey : PKey<Public> = PKey::from_rsa(rsa)?;
+                    let pkey: PKey<Public> = PKey::from_rsa(rsa)?;
 
                     let k = Key {
                         alg: key.alg.clone(),
@@ -109,7 +107,7 @@ impl Ctx {
             }
         }
         if map.len() == 0 {
-                return Err(Error::NoKeys);
+            return Err(Error::NoKeys);
         }
         self.keys = map;
         Ok(())
@@ -120,7 +118,8 @@ impl Ctx {
     /// Expected format is JWK and an be found at
     /// https://www.googleapis.com/oauth2/v3/certs
     pub fn set_keys_from_reader<R>(&mut self, reader: R) -> Result<(), Error>
-        where R: Read
+    where
+        R: Read,
     {
         let jsonkeys: JsonKeys = serde_json::from_reader(reader)?;
         return self.set_keys_from_json_keys(jsonkeys);
@@ -130,8 +129,7 @@ impl Ctx {
     ///
     /// Expected format is JWK and an be found at
     /// https://www.googleapis.com/oauth2/v3/certs
-    pub fn set_keys_from_str<'a>(&mut self, s: &'a str) -> Result<(), Error>
-    {
+    pub fn set_keys_from_str<'a>(&mut self, s: &'a str) -> Result<(), Error> {
         let jsonkeys: JsonKeys = serde_json::from_str(s)?;
         return self.set_keys_from_json_keys(jsonkeys);
     }
@@ -168,7 +166,6 @@ impl Ctx {
 
         Ok(payload.sub)
     }
-
 }
 
 fn base64_decode_url(msg: &str) -> Result<Vec<u8>, base64::DecodeError> {
@@ -220,11 +217,11 @@ fn decode_payload(base64_payload: &str) -> Result<Payload, Error> {
     let exp = json_get_numeric_date(obj, "exp")?;
 
     Ok(Payload {
-           sub: sub.to_string(),
-           iss: iss.to_string(),
-           aud: aud.to_string(),
-           exp: exp,
-       })
+        sub: sub.to_string(),
+        iss: iss.to_string(),
+        aud: aud.to_string(),
+        exp: exp,
+    })
 }
 
 fn verify_payload(ctx: &Ctx, payload: &Payload) -> Result<(), Error> {
@@ -255,12 +252,13 @@ fn verify_rs256(txt: &str, key: &Key, sig: &[u8]) -> Result<(), Error> {
     }
 }
 
-fn verify_signature(ctx: &Ctx,
-                    hdr: &Header,
-                    hdr_base64: &str,
-                    payload_base64: &str,
-                    sig: &[u8])
-                    -> Result<(), Error> {
+fn verify_signature(
+    ctx: &Ctx,
+    hdr: &Header,
+    hdr_base64: &str,
+    payload_base64: &str,
+    sig: &[u8],
+) -> Result<(), Error> {
     let txt = format!("{}.{}", hdr_base64, payload_base64);
 
     let key = ctx.keys.get(&hdr.kid);
@@ -277,7 +275,6 @@ fn verify_signature(ctx: &Ctx,
         _ => Err(Error::UnsupportedAlgorithm),
     }
 }
-
 
 #[cfg(test)]
 mod tests {

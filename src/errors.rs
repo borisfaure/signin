@@ -1,7 +1,7 @@
 use base64;
-use std::{error, fmt};
-use serde_json;
 use openssl;
+use serde_json;
+use std::{error, fmt};
 
 #[derive(Debug)]
 pub enum Error {
@@ -17,14 +17,16 @@ pub enum Error {
     Expired,
     MissingField(&'static str),
     InvalidTypeField(&'static str),
-    NoKeys
+    NoKeys,
 }
 macro_rules! impl_from_error {
     ($f: ty, $e: expr) => {
         impl From<$f> for Error {
-            fn from(f: $f) -> Error { $e(f) }
+            fn from(f: $f) -> Error {
+                $e(f)
+            }
         }
-    }
+    };
 }
 impl_from_error!(base64::DecodeError, Error::DecodeBase64);
 impl_from_error!(serde_json::Error, Error::DecodeJson);
@@ -49,11 +51,11 @@ impl error::Error for Error {
     }
     fn cause(&self) -> Option<&error::Error> {
         Some(match *self {
-                 Error::DecodeBase64(ref err) => err as &error::Error,
-                 Error::DecodeJson(ref err) => err as &error::Error,
-                 Error::OpensslError(ref err) => err as &error::Error,
-                 ref e => e as &error::Error,
-             })
+            Error::DecodeBase64(ref err) => err as &error::Error,
+            Error::DecodeJson(ref err) => err as &error::Error,
+            Error::OpensslError(ref err) => err as &error::Error,
+            ref e => e as &error::Error,
+        })
     }
 }
 impl fmt::Display for Error {
