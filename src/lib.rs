@@ -22,7 +22,7 @@ use openssl::rsa::Rsa;
 use openssl::sign::Verifier;
 use std::collections::HashMap;
 use std::io::Read;
-use time::Timespec;
+use time::{Duration, OffsetDateTime};
 
 type JsonValue = serde_json::value::Value;
 type JsonObject = serde_json::map::Map<String, JsonValue>;
@@ -37,7 +37,7 @@ struct Payload {
     pub sub: String,
     pub iss: String,
     pub aud: String,
-    pub exp: Timespec,
+    pub exp: OffsetDateTime,
 }
 
 #[derive(Deserialize)]
@@ -190,14 +190,14 @@ fn json_get_str<'a>(obj: &'a JsonObject, name: &'static str) -> Result<&'a str, 
     }
 }
 
-fn json_get_numeric_date(obj: &JsonObject, name: &'static str) -> Result<Timespec, Error> {
+fn json_get_numeric_date(obj: &JsonObject, name: &'static str) -> Result<OffsetDateTime, Error> {
     let o: Option<&JsonValue> = obj.get(name);
     if let Some(v) = o {
         if !v.is_i64() {
             return Err(Error::InvalidTypeField(name));
         }
         let sec = v.as_i64().unwrap();
-        return Ok(Timespec { sec: sec, nsec: 0 });
+        return Ok(OffsetDateTime::from_unix_timestamp(sec));
     } else {
         return Err(Error::MissingField(name));
     }
@@ -231,8 +231,8 @@ fn verify_payload(ctx: &Ctx, payload: &Payload) -> Result<(), Error> {
     if payload.iss != "accounts.google.com" && payload.iss != "https://accounts.google.com" {
         return Err(Error::InvalidIssuer);
     }
-    let now = time::now_utc().to_timespec();
-    if payload.exp.sec + 3600 < now.sec {
+    let now = OffsetDateTime::now_utc();
+    if payload.exp + Duration::hours(1) < now {
         return Err(Error::Expired);
     }
     Ok(())
