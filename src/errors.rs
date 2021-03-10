@@ -1,7 +1,7 @@
 use base64;
 use openssl;
 use serde_json;
-use std::{error, fmt};
+use std::fmt;
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,43 +19,15 @@ pub enum Error {
     InvalidTypeField(&'static str),
     NoKeys,
 }
-macro_rules! impl_from_error {
-    ($f: ty, $e: expr) => {
-        impl From<$f> for Error {
-            fn from(f: $f) -> Error {
-                $e(f)
-            }
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::DecodeBase64(e) => Some(e),
+            Error::DecodeJson(e) => Some(e),
+            Error::OpensslError(e) => Some(e),
+            _ => None,
         }
-    };
-}
-impl_from_error!(base64::DecodeError, Error::DecodeBase64);
-impl_from_error!(serde_json::Error, Error::DecodeJson);
-impl_from_error!(openssl::error::ErrorStack, Error::OpensslError);
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::DecodeBase64(ref err) => err.description(),
-            Error::DecodeJson(ref err) => err.description(),
-            Error::OpensslError(ref err) => err.description(),
-            Error::InvalidToken => "Invalid Token",
-            Error::InvalidIssuer => "Invalid Issuer",
-            Error::InvalidAudience => "Invalid Audience",
-            Error::InvalidSignature => "Invalid Signature",
-            Error::Expired => "Expired",
-            Error::UnsupportedAlgorithm => "Unsupported Algorithm",
-            Error::NoMatchingSigningKey => "No Matching Signing Key",
-            Error::MissingField(_) => "Missing Field",
-            Error::InvalidTypeField(_) => "Invalid type on field",
-            Error::NoKeys => "No Keys found",
-        }
-    }
-    fn cause(&self) -> Option<&error::Error> {
-        Some(match *self {
-            Error::DecodeBase64(ref err) => err as &error::Error,
-            Error::DecodeJson(ref err) => err as &error::Error,
-            Error::OpensslError(ref err) => err as &error::Error,
-            ref e => e as &error::Error,
-        })
     }
 }
 impl fmt::Display for Error {
@@ -64,16 +36,35 @@ impl fmt::Display for Error {
             Error::DecodeBase64(ref err) => fmt::Display::fmt(err, f),
             Error::DecodeJson(ref err) => fmt::Display::fmt(err, f),
             Error::OpensslError(ref err) => fmt::Display::fmt(err, f),
-            Error::InvalidToken => write!(f, "{}", error::Error::description(self)),
-            Error::InvalidIssuer => write!(f, "{}", error::Error::description(self)),
-            Error::InvalidAudience => write!(f, "{}", error::Error::description(self)),
-            Error::InvalidSignature => write!(f, "{}", error::Error::description(self)),
-            Error::Expired => write!(f, "{}", error::Error::description(self)),
-            Error::UnsupportedAlgorithm => write!(f, "{}", error::Error::description(self)),
-            Error::NoMatchingSigningKey => write!(f, "{}", error::Error::description(self)),
+            Error::InvalidToken => write!(f, "Invalid Token"),
+            Error::InvalidIssuer => write!(f, "Invalid Issuer"),
+            Error::InvalidAudience => write!(f, "Invalid Audience"),
+            Error::InvalidSignature => write!(f, "Invalid Signature"),
+            Error::Expired => write!(f, "Expired"),
+            Error::UnsupportedAlgorithm => write!(f, "Unsupported Algorithm"),
+            Error::NoMatchingSigningKey => write!(f, "No Matching Signing Key"),
             Error::MissingField(s) => write!(f, "Missing Field '{}'", s),
             Error::InvalidTypeField(s) => write!(f, "Invalid type on Field '{}'", s),
-            Error::NoKeys => write!(f, "{}", error::Error::description(self)),
+            Error::NoKeys => write!(f, "No Keys found"),
         }
+    }
+}
+
+impl From<base64::DecodeError> for Error {
+    #[inline]
+    fn from(error: base64::DecodeError) -> Error {
+        Error::DecodeBase64(error)
+    }
+}
+impl From<serde_json::Error> for Error {
+    #[inline]
+    fn from(error: serde_json::Error) -> Error {
+        Error::DecodeJson(error)
+    }
+}
+impl From<openssl::error::ErrorStack> for Error {
+    #[inline]
+    fn from(error: openssl::error::ErrorStack) -> Error {
+        Error::OpensslError(error)
     }
 }
