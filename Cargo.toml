@@ -1,6 +1,6 @@
 [package]
 name = "signin"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Boris Faure <boris@fau.re>"]
 license = "BSD-2-Clause"
 keywords = ["google", "sign-in", "jwt"]
